@@ -24,9 +24,11 @@
 \typeout{(c) 2015, Antoine Bertout (bertout.antoine@gmail.com)}
 \typeout{Version 2.0}
 
+\RequirePackage[dvipsnames]{xcolor}
 \RequirePackage{tikz}
 \usetikzlibrary{shadows, patterns}
 \RequirePackage{keyval}
+
 \newcommand\rtfont{\usefont{T1}{phv}{m}{n}}
 \@ifpackagelater{pgf}{2008/01/15}
 {
@@ -45,6 +47,12 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 }
 
 %%
+%% Define colors
+%%
+
+\definecolor{lightGray}{gray}{0.8}
+
+%%
 %% These can be changed at any time
 %% 
 \def\RTWindowLength{10cm}    % window length
@@ -55,8 +63,10 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 \def\RTDefTaskSymbol{\tau} 
 \def\RTDefNumberOffset{0}
 \def\RTDefTaskFill{solid}
-\def\RTDefTaskColor{gray}
+\def\RTDefTaskColor{lightGray}
 \def\RTDefLineColor{black}
+\def\RTDefArrivalColor{Green}
+\def\RTDefDeadlineColor{Red}
 \def\RTDefXScale{1}
 \def\RTDefWriteSymbols{0}
 \def\RTDefGridInvisible{0}
@@ -65,7 +75,7 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 \def\RTDefAxisInvisible{0}
 \def\RTDefLineWidth{1pt}
 \def\RTDefLineStyle{solid}
-\def\RTDefExecHeight{1}
+\def\RTDefExecHeight{0.65}
 \def\RTArrowStyle{stealth}
 %arrow style for deadlines, arrivals and horizontal axes
 % -{Triangle 45}[length=x] with length is a more modern arrow style but requires arrows.meta tikz library (available on latest texlive but rarely up to date on linux distribution)
@@ -77,6 +87,8 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 \def\RTTaskFill{\RTDefTaskFill}
 \def\RTTaskColor{\RTDefTaskColor}
 \def\RTLineColor{\RTDefLineColor}
+\def\RTArrivalColor{\RTDefArrivalColor}
+\def\RTDeadlineColor{\RTDefDeadlineColor}
 \def\RTXScale{\RTDefXScale}
 \def\RTWriteSymbols{\RTDefWriteSymbols}
 \def\RTNumberOffset{\RTDefNumberOffset}
@@ -122,6 +134,7 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 \newdimen\yy % y position
 \newdimen\xxx % x position
 \newdimen\yyy % y position
+\newdimen\ytmp % y position
 \newdimen\xtmp % x position
 \newcount\nsx % number of horizontal slots
 \newcount\nsy % number of vertical slots
@@ -140,13 +153,13 @@ Please update pgf to version 2.10 minimum!\MessageBreak
   %% get the number of tasks
   \ntasks = #2
   %% number of horizontal steps in the grid
-  \nsx = #3 \advance \nsx by 2 %
+  \nsx = #3 %\advance \nsx by 2 % here!
   %% real length of the window (approx)
   \nvl = \nsx \advance \nvl by 1 %
   %% compute length of a step
   \sx = \RTWindowLength \divide \sx by \nsx %
   %% number of vertical steps in the grid
-  \nsy = #2 \multiply \nsy by 3 \advance \nsy by 1 %
+  \nsy = #2 \multiply \nsy by 2 %\advance \nsy by 1 %
   %% compute length of a vertical step (if height is null, \sy is the
   %% same as \sx)
   \ifx\RTWindowHeight\RTNullWindowHeight%
@@ -166,19 +179,20 @@ Please update pgf to version 2.10 minimum!\MessageBreak
   \begin{tikzpicture}
     %% draw grid (if not invisible)
     \if\RTGridInvisible\RTDefGridInvisible
-      \draw[lightgray, semithick] (0,0) grid[xstep = \sx,ystep=\sy ] (\RTWindowLength,\hy);
+      \draw[lightgray, densely dotted] (0,0) grid[xstep = \sx,ystep=\sy ] (\RTWindowLength,\hy);
     %% draw border grid
-      \draw [black, thick] (0,0) rectangle (\RTWindowLength,\hy);
+      \draw [black, semithick] (0,0) rectangle (\RTWindowLength,\hy);
     \else\relax
     \fi
 
     %% draw numbers (if not invisible)
     \if\RTNumbersInvisible\RTDefNumbersInvisible
-       \foreach \i [evaluate = \i as \j using \i*\sx] in {0,...,#3}{
+       \foreach \i [evaluate = \i as \j using (\i*\sx)-\sx] in {0,...,#3}{
        \ifodd \i
        \else
        \pgfmathsetmacro\nbwithoffset{\i + \RTNumberOffset};
-       \node[below, font=\RTNumberLabelSize \rtfont] at (\j +\sx , 0) {\pgfmathprintnumber[int trunc,/pgf/number format/assume math mode=true]{\nbwithoffset }};
+       \j
+       \node[below, font=\RTNumberLabelSize \rtfont] at (\j + \sx,0 ) {\pgfmathprintnumber[int trunc,/pgf/number format/assume math mode=true]{\nbwithoffset }};
        \fi
        }
     \else
@@ -187,9 +201,9 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 
     %% Task Names
     \if\RTWriteSymbols\RTDefWriteSymbols
-     \foreach \i  [evaluate = \i as \j using (\hy -3*\i*\sy)] in {0,...,\numexpr \ntasks - 1}{
+     \foreach \i  [evaluate = \i as \j using (\hy -2*\i*\sy)] in {0,...,\numexpr \ntasks - 1}{
       \pgfmathsetmacro\task{\i + 1};
-      \node[below, font=\rtfont] at (-\sx , \j-\sy) {\RTTaskLabelSize $\RTTaskSymbol_{\pgfmathprintnumber[int trunc]{\task}}$};
+      \node[below, font=\rtfont] at (-\sx/2 , \j-\sy) {\RTTaskLabelSize $\RTTaskSymbol_{\pgfmathprintnumber[int trunc]{\task}}$};
      }
      \else\relax
      \fi
@@ -197,8 +211,8 @@ Please update pgf to version 2.10 minimum!\MessageBreak
     %% Horizontal axes
     \if\RTAxisInvisible\RTDefAxisInvisible
       \begin{pgfonlayer}{foreground} 
-      \foreach \i [evaluate = \i as \j using (\hy -3*\i*\sy)] in {0,...,\numexpr \ntasks - 1}{
-      \draw [very thick,-\RTArrowStyle] (\sx,\j-3*\sy) -- (\RTWindowLength - \sx,\j-3*\sy);
+      \foreach \i [evaluate = \i as \j using (\hy -2*\i*\sy)] in {0,...,\numexpr \ntasks - 1}{
+      \draw [very thick,-\RTArrowStyle] (0,\j-2*\sy) -- (\RTWindowLength,\j-2*\sy);
       }
       \end{pgfonlayer} 
     \fi 
@@ -247,17 +261,17 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 \newcommand{\@compute@xx}[1]{
   \xx = #1\sx
   \divide \xx by \RTXScale
-  \advance \xx by \sx
+%   \advance \xx by \sx
 }
 
 \newcommand{\@compute@xxx}[1]{
   \xxx = #1\sx
   \divide \xxx by \RTXScale
-  \advance \xxx by \sx
+%   \advance \xxx by \sx
 }
 
 \newcommand{\@compute@yy}[1]{
-  \yy = -3\sy \multiply \yy by #1
+  \yy = -2\sy \multiply \yy by #1
   \advance \yy by \hy
 }
 
@@ -302,11 +316,45 @@ Please update pgf to version 2.10 minimum!\MessageBreak
     \setkeys{RT}{#1}%
     \@compute@yy{#2}
     \@compute@xx{#3}
-    \yyy = \yy \advance \yyy by 2\sy%
+    \yyy = \yy \advance \yyy by 1\sy%
      \begin{pgfonlayer}{foreground} 
-    \draw [\RTLineColor, thick,-\RTArrowStyle] (\xx,\yy) -- (\xx,\yyy);
+    \draw [\RTArrivalColor, thick,-\RTArrowStyle] (\xx,\yy) -- (\xx,\yyy);
      \end{pgfonlayer}
     \@RTExecDefaultValues%
+}
+
+%
+% TaskArrivalWithJitter
+% Task arrival: draws an up arrow at the specified slot
+% par 1  : task number from 1 to n
+% par 2  : slot number from 0 to l-1
+% par 3  : jitter
+\newcommand{\TaskArrivalWithJitter}[4][nocommand=1]{%
+    \setkeys{RT}{#1}%
+    \@compute@yy{#2}
+    \@compute@xx{#3}
+    \yyy = \yy \advance \yyy by 1\sy%
+     \begin{pgfonlayer}{foreground} 
+    \draw [\RTArrivalColor, thick,-\RTArrowStyle] (\xx,\yy) -- (\xx,\yyy);
+     \end{pgfonlayer}
+    \@RTExecDefaultValues%
+
+    
+    % draw the second arrow to show the end of interval
+    \xxx = \xx \advance \xxx by #4\sx
+    
+     \begin{pgfonlayer}{foreground} 
+    \draw [\RTArrivalColor, thick,-\RTArrowStyle] (\xxx,\yy) -- (\xxx,\yyy);
+     \end{pgfonlayer}
+    \@RTExecDefaultValues%
+    
+    % draw the jitter interval
+    \yyy = \yy \advance \yyy by \RTExecHeight \sy 
+    \ytmp= \yy \advance \ytmp by 0.2 \sy 
+    \draw [pattern color=\RTArrivalColor,draw=\RTArrivalColor, pattern=north west lines, thin, opacity=0.5] (\xx,\ytmp) rectangle (\xxx,\yyy);
+    \@RTExecDefaultValues
+    
+
 }
 
 %
@@ -332,13 +380,13 @@ Please update pgf to version 2.10 minimum!\MessageBreak
   \setkeys{RT}{#1}%
   \@compute@yy{#2}
   \@compute@xx{#3}
-  \yyy = \yy \advance \yyy by 2\sy
+  \yyy = \yy \advance \yyy by 1\sy
   \begin{pgfonlayer}{foreground} 
-  \draw [\RTLineColor, thick,-\RTArrowStyle] (\xx,\yy) -- (\xx,\yyy);
+  \draw [\RTArrivalColor, thick,-\RTArrowStyle] (\xx,\yy) -- (\xx,\yyy);
   \end{pgfonlayer}
   \advance \xx by #4\sx
   \begin{pgfonlayer}{foreground} 
-  \draw [\RTLineColor, thick, -\RTArrowStyle] (\xx,\yyy) -- (\xx,\yy);
+  \draw [\RTDeadlineColor, thick, -\RTArrowStyle] (\xx,\yyy) -- (\xx,\yy);
   \end{pgfonlayer}
   \@RTExecDefaultValues
 }
@@ -367,9 +415,9 @@ Please update pgf to version 2.10 minimum!\MessageBreak
   \setkeys{RT}{#1}%
   \@compute@yy{#2}
   \@compute@xx{#3}
-  \yyy = \yy \advance \yyy by 2\sy
+  \yyy = \yy \advance \yyy by 1\sy
   \begin{pgfonlayer}{foreground} 
-  \draw [\RTLineStyle, \RTLineColor, thick, \RTArrowStyle-] (\xx,\yy) -- (\xx,\yyy);
+  \draw [\RTLineStyle, \RTDeadlineColor, thick, \RTArrowStyle-] (\xx,\yy) -- (\xx,\yyy);
   \end{pgfonlayer}
   \@RTExecDefaultValues
 }
@@ -489,7 +537,7 @@ Please update pgf to version 2.10 minimum!\MessageBreak
   \setkeys{RT}{#1}%
   \@compute@yy{#2}
   \@compute@xx{#3}
-  \yyy = -3\sy \multiply \yyy by #4 %\advance \yyy by \sy
+  \yyy = -2\sy \multiply \yyy by #4 %\advance \yyy by \sy
   \advance \yyy by \hy %\advance \yyy by -\sy %\RTWindowHeight
   \xxx = #5\sx \advance \xxx by \sx
    \begin{pgfonlayer}{foreground} 
@@ -652,7 +700,7 @@ Please update pgf to version 2.10 minimum!\MessageBreak
   \setkeys{RT}{#1}
   \@compute@yy{#2}
   \@compute@xx{#3}
-  \yyy = \yy \advance \yyy by \sy  
+  \yyy = \yy \advance \yyy by \RTExecHeight \sy 
   \xxx = \xx \advance \xxx by #4\sx
   \draw [pattern color=\RTTaskColor,draw=\RTLineColor, pattern=crosshatch, thin] (\xx,\yy) rectangle (\xxx,\yyy);
   \@RTExecDefaultValues

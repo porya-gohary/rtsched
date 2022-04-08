@@ -27,6 +27,7 @@
 \RequirePackage[dvipsnames]{xcolor}
 \RequirePackage{tikz}
 \usetikzlibrary{shadows, patterns}
+\usetikzlibrary{decorations.pathreplacing}
 \RequirePackage{keyval}
 
 \newcommand\rtfont{\usefont{T1}{phv}{m}{n}}
@@ -50,7 +51,7 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 %% Define colors
 %%
 
-\definecolor{lightGray}{gray}{0.8}
+\definecolor{lightGrey}{gray}{0.8}
 
 %%
 %% These can be changed at any time
@@ -58,14 +59,15 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 \def\RTWindowLength{10cm}    % window length
 \def\RTWindowHeight{0}     % window height
 \def\RTNullWindowHeight{0} % nullwindow height
-\def\RTTaskLabelSize{\normalsize}   % font size the task label
-\def\RTNumberLabelSize{\normalsize} % font size of the number labels
+\def\RTTaskLabelSize{\scriptsize}   % font size the task label
+\def\RTNumberLabelSize{\small} % font size of the number labels
 \def\RTDefTaskSymbol{\tau} 
 \def\RTDefNumberOffset{0}
 \def\RTDefTaskFill{solid}
-\def\RTDefTaskColor{lightGray}
+\def\RTDefTaskColor{lightGrey}
 \def\RTDefLineColor{black}
 \def\RTDefArrivalColor{Green}
+\def\RTDefIntervalColor{Purple}
 \def\RTDefDeadlineColor{Red}
 \def\RTDefXScale{1}
 \def\RTDefWriteSymbols{0}
@@ -89,6 +91,7 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 \def\RTLineColor{\RTDefLineColor}
 \def\RTArrivalColor{\RTDefArrivalColor}
 \def\RTDeadlineColor{\RTDefDeadlineColor}
+\def\RTIntervalColor{\RTDefIntervalColor}
 \def\RTXScale{\RTDefXScale}
 \def\RTWriteSymbols{\RTDefWriteSymbols}
 \def\RTNumberOffset{\RTDefNumberOffset}
@@ -575,10 +578,10 @@ Please update pgf to version 2.10 minimum!\MessageBreak
 \@compute@yy{#2}
 \@compute@xx{#3}
 \@compute@xxx{#4}
-\advance \yy by .5\sy
+\advance \yy by 1.2 \sy
 \draw [\RTLineColor, thick, \RTArrowStyle-\RTArrowStyle] (\xx,\yy) -- (\xxx,\yy);
 \advance \xx by \xxx \xx = .5\xx
-%\advance \yy by .5\RTExecHeight\sy
+\advance \yy by -.1\sy
 \draw (\xx,\yy) node[above,font=\rtfont] {\RTTaskLabelSize #5};%
 
 \@RTExecDefaultValues
@@ -704,6 +707,55 @@ Please update pgf to version 2.10 minimum!\MessageBreak
   \xxx = \xx \advance \xxx by #4\sx
   \draw [pattern color=\RTTaskColor,draw=\RTLineColor, pattern=crosshatch, thin] (\xx,\yy) rectangle (\xxx,\yyy);
   \@RTExecDefaultValues
+}
+
+% 
+% BraceInterval
+% par 1:  task
+% par 2:  start time
+% par 3:  finish time
+%
+\newcommand{\BraceInterval}[4][nocommand=1]{
+  \setkeys{RT}{#1}
+  \@compute@yy{#2}
+  \@compute@xx{#3}
+  
+  \ytmp = \yy \advance \ytmp by 1.5\sy
+  \xxx = \xx \advance \xxx by #4\sx
+  
+%   \node[scale=1,inner sep=-1pt,outer sep=0pt,anchor=west,label=right:$A^{min}$] at (\xx,\ytmp) {[};
+%   \node[scale=1,inner sep=-1pt,outer sep=0pt,anchor=west,label=left:$A^{max}$] at (\xxx,\ytmp) {]};
+  \node[scale=1,inner sep=0pt,outer sep=0pt,anchor=center] at (\xx,\ytmp) {[};
+  \node[scale=1,inner sep=0pt,outer sep=0pt,anchor=center] at (\xxx,\ytmp) {]};
+ 
+  
+    \yyy = \yy \advance \yyy by 1.7\sy 
+    \ytmp= \ytmp \advance \ytmp by -0.2 \sy 
+    \draw [pattern color=\RTIntervalColor,draw=\RTIntervalColor, pattern=north west lines, thin, opacity=0.5] (\xx,\ytmp) rectangle (\xxx,\yyy);
+    \@RTExecDefaultValues
+    
+
+    
+  
+}
+
+
+% 
+% IntervalNotice
+% par 1:  start time
+% par 2:  finish time
+% par 3:  label
+%
+\newcommand{\IntervalNotice}[4][nocommand=1]{
+  \setkeys{RT}{#1}
+  \@compute@yy{\ntasks}
+  \@compute@xx{#2}
+  
+  \ytmp = \yy \advance \ytmp by -0.5\sy
+  \xxx = \xx \advance \xxx by #3\sx
+          \draw[draw=\RTDeadlineColor,decorate, decoration={brace, amplitude=5pt},] ([yshift=-0.2cm]\xxx,\ytmp)-- node[below=0.1cm,font=\small,text=\RTDeadlineColor]
+     {#4}([yshift=-0.2cm]\xx,\ytmp);
+    
 }
 
 \@ifclassloaded{beamer}{
